@@ -81,3 +81,9 @@ CREATE TABLE "sale_details" (
   "product_id" int REFERENCES "product" ("id"),
   "quantity" int
 );
+
+CREATE TABLE truncate_log (
+    id serial PRIMARY KEY,
+    table_name text,
+    truncated_at timestamp DEFAULT now(),
+);
