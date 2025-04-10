@@ -85,5 +85,20 @@ CREATE TABLE "sale_details" (
 CREATE TABLE truncate_log (
     id serial PRIMARY KEY,
     table_name text,
-    truncated_at timestamp DEFAULT now(),
+    truncated_at timestamp DEFAULT now()
+);
+
+CREATE TABLE sale_delete_log (
+    id serial PRIMARY KEY,
+    sale_id int,
+    owner_id int,
+    deleted_at timestamp DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS product_stock_log (
+    id serial PRIMARY KEY,
+    product_id int,
+    old_stock int,
+    new_stock int,
+    changed_at timestamp DEFAULT now()
 );

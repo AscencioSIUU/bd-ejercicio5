@@ -92,8 +92,72 @@ ON sql_drop
 WHEN TAG IN ('TRUNCATE')
 EXECUTE FUNCTION log_truncate();
 
+CREATE OR REPLACE FUNCTION before_delete_sale()
+RETURNS TRIGGER AS $$
+DECLARE
+    sale_detail_count INT;
+BEGIN
+    SELECT COUNT(*) INTO sale_detail_count
+    FROM sale_details
+    WHERE sale_id = OLD.id;
 
+    IF sale_detail_count > 0 THEN
+        RAISE EXCEPTION 'No se puede eliminar la venta porque tiene detalles asociados.';
+    END IF;
 
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trigger_before_delete_sale
+BEFORE DELETE ON sale
+FOR EACH ROW
+EXECUTE FUNCTION before_delete_sale();
 
+CREATE OR REPLACE FUNCTION after_delete_sale()
+RETURNS TRIGGER AS $$
+BEGIN
 
+    INSERT INTO sale_delete_log (sale_id, owner_id, deleted_at)
+    VALUES (OLD.id, OLD.owner_id, NOW());
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trigger_after_delete_sale
+AFTER DELETE ON sale
+FOR EACH ROW
+EXECUTE FUNCTION after_delete_sale();
+
+CREATE OR REPLACE FUNCTION before_update_product_stock()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.current_stock < 0 THEN
+        RAISE EXCEPTION 'No se puede establecer stock negativo para un producto.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_before_update_product_stock
+BEFORE UPDATE ON product
+FOR EACH ROW
+EXECUTE FUNCTION before_update_product_stock();
+
+CREATE OR REPLACE FUNCTION after_update_product_stock()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.current_stock <> NEW.current_stock THEN
+        INSERT INTO product_stock_log (product_id, old_stock, new_stock, changed_at)
+        VALUES (OLD.id, OLD.current_stock, NEW.current_stock, NOW());
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_after_update_product_stock
+AFTER UPDATE ON product
+FOR EACH ROW
+EXECUTE FUNCTION after_update_product_stock();
 
